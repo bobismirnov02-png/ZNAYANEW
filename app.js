@@ -266,14 +266,14 @@
   function openDeckDetail(id){state=loadState();const deck=findDeck(id);if(!deck)return;libraryState.openDeckId=String(id);const s=subjectInfo(deck.subject),m=deckMetrics(deck,state),cards=deck.cards||[];
     document.getElementById('deckDetailSubject').innerHTML=`<span class="subject-dot" style="--subject-color:${s.color}"></span>${esc(s.label)}`;document.getElementById('deckDetailTitle').textContent=deck.name||'Без име';document.getElementById('deckDetailMeta').textContent=`Обновен ${formatUpdated(deck)} · ${deck.source||'ZNAYA'}`;
     document.getElementById('deckDetailStats').innerHTML=`<div class="detail-stat"><strong>${m.cards}</strong><span>карти</span></div><div class="detail-stat"><strong>${m.attempts?`${m.accuracy}%`:'—'}</strong><span>точност</span></div><div class="detail-stat"><strong>${m.mastered}%</strong><span>овладяно</span></div>`;
-    document.getElementById('deckPreviewCount').textContent=`${cards.length} ${cards.length===1?'карта':'карти'}`;document.getElementById('deckPreviewList').innerHTML=cards.slice(0,7).map(c=>`<article class="deck-preview-card"><span class="type-pill">${esc(TYPE_LABELS[c.type]||'Карта')}</span><strong>${esc(c.q||'Без въпрос')}</strong><p>${esc(correctText(c)||'Няма зададен отговор')}</p></article>`).join('')+(cards.length>7?`<div class="deck-preview-more">+ още ${cards.length-7} карти</div>`:'');
+    document.getElementById('deckPreviewCount').textContent=`${cards.length} ${cards.length===1?'карта':'карти'}`;document.getElementById('deckPreviewList').innerHTML=cards.slice(0,7).map(c=>`<article class="deck-preview-card"><span class="type-pill">${esc(TYPE_LABELS[c.type]||'Карта')}</span>${hasQuestionCrop(c)?`<img class="deck-preview-crop" src="${c.crop}" alt="Изрязан въпрос">`:''}<strong>${esc(c.q||'Без въпрос')}</strong><p>${esc(correctText(c)||'Няма зададен отговор')}</p></article>`).join('')+(cards.length>7?`<div class="deck-preview-more">+ още ${cards.length-7} карти</div>`:'');
     const b=document.getElementById('deckBackdrop');b.hidden=false;b.classList.add('open');b.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
   }
   function closeDeckDetail(){const b=document.getElementById('deckBackdrop');b.classList.remove('open');b.setAttribute('aria-hidden','true');b.hidden=true;document.body.style.overflow='';}
   function duplicateDeck(id){state=loadState();const src=findDeck(id);if(!src)return;const now=new Date().toISOString(),deckId=`deck-${Date.now()}`;const cards=(src.cards||[]).map((c,i)=>({...JSON.parse(JSON.stringify(c)),id:`c${Date.now()}-${i}`,createdAt:now}));const copy={...JSON.parse(JSON.stringify(src)),id:deckId,name:`Копие на ${src.name||'комплект'}`,createdAt:now,updatedAt:now,cards};state.deckLibrary.unshift(copy);cards.forEach(c=>state.mistakes[c.id]=0);saveState();closeDeckDetail();renderLibrary();renderHome();toast('Комплектът е дублиран.');}
   function askDeleteDeck(id){const deck=findDeck(id);if(!deck)return;libraryState.openDeckId=String(id);document.getElementById('confirmText').textContent=`„${deck.name||'Този комплект'}“ и статистиката му ще бъдат премахнати.`;const cb=document.getElementById('confirmBackdrop');cb.hidden=false;cb.classList.add('open');cb.setAttribute('aria-hidden','false');}
   function deleteOpenDeck(){state=loadState();const id=libraryState.openDeckId,deck=findDeck(id);if(!deck)return;const ids=new Set((deck.cards||[]).map(c=>String(c.id)));state.deckLibrary=(state.deckLibrary||[]).filter(d=>String(d.id)!==String(id));state.results=(state.results||[]).filter(r=>!ids.has(String(r.id)));ids.forEach(cid=>delete state.mistakes[cid]);if(String(state.currentDeckId||'')===String(id)){const next=state.deckLibrary[0];state.currentDeckId=next?.id||null;state.currentDeckName=next?.name||'';state.deck=next?JSON.parse(JSON.stringify(next.cards||[])):[];}saveState();{const cb=document.getElementById('confirmBackdrop');cb.classList.remove('open');cb.setAttribute('aria-hidden','true');cb.hidden=true;}closeDeckDetail();renderLibrary();renderHome();toast('Комплектът е изтрит.');}
-  function editCardMarkup(c,i){const type=TYPE_LABELS[c.type]||'Карта';let ans;if(c.type==='mcq'){const opts=Array.isArray(c.o)?c.o:['','','',''];ans=`<div class="edit-mcq">${opts.map((o,j)=>`<label class="edit-option"><input type="radio" name="edit-a-${i}" value="${'ABCD'[j]}" data-edit-a="${i}" ${c.a==='ABCD'[j]?'checked':''}><span>${'ABCD'[j]}</span><input type="text" data-edit-option="${i}:${j}" value="${esc(o)}"></label>`).join('')}</div>`;}else if(c.type==='match'){const left=Array.isArray(c.matchLeft)?c.matchLeft:[],right=Array.isArray(c.matchRight)?c.matchRight:[],n=Math.max(2,left.length,right.length);ans=`<div class="match-editor-grid"><div><label class="mini-label">Лява колона</label>${Array.from({length:n},(_,j)=>`<label class="match-edit-row"><span>${String.fromCharCode(65+j)}</span><input type="text" data-edit-match-side="matchLeft" data-edit-match-item="${j}" data-edit-index="${i}" value="${esc(left[j]||'')}"></label>`).join('')}</div><div><label class="mini-label">Дясна колона</label>${Array.from({length:n},(_,j)=>`<label class="match-edit-row"><span>${j+1}</span><input type="text" data-edit-match-side="matchRight" data-edit-match-item="${j}" data-edit-index="${i}" value="${esc(right[j]||'')}"></label>`).join('')}</div></div><label class="mini-label">Правилно свързване</label><input class="match-map-input" type="text" data-edit-field="matchAnswer" data-edit-index="${i}" value="${esc(c.matchAnswer||'')}" placeholder="A:1; B:3; C:2">`;}else{const field=c.type==='combo'?'comboAnswer':'answer';const value=c[field]||'';ans=`<label class="mini-label">Правилен отговор</label><textarea rows="2" data-edit-field="${field}" data-edit-index="${i}">${esc(value)}</textarea>`;}return `<article class="edit-card" data-edit-card="${i}"><div class="edit-card-head"><span class="type-pill">${esc(type)}</span><button type="button" class="edit-remove" data-edit-remove="${i}">Премахни</button></div><label class="mini-label">Въпрос</label><textarea rows="2" data-edit-field="q" data-edit-index="${i}">${esc(c.q||'')}</textarea>${ans}<label class="mini-label">Обяснение</label><textarea rows="2" data-edit-field="e" data-edit-index="${i}">${esc(c.e||'')}</textarea></article>`;}
+  function editCardMarkup(c,i){const type=TYPE_LABELS[c.type]||'Карта';let ans;if(c.type==='mcq'){const opts=Array.isArray(c.o)?c.o:['','','',''];ans=`<div class="edit-mcq">${opts.map((o,j)=>`<label class="edit-option"><input type="radio" name="edit-a-${i}" value="${'ABCD'[j]}" data-edit-a="${i}" ${c.a==='ABCD'[j]?'checked':''}><span>${'ABCD'[j]}</span><input type="text" data-edit-option="${i}:${j}" value="${esc(o)}"></label>`).join('')}</div>`;}else if(c.type==='match'){const left=Array.isArray(c.matchLeft)?c.matchLeft:[],right=Array.isArray(c.matchRight)?c.matchRight:[],n=Math.max(2,left.length,right.length);ans=`<div class="match-editor-grid"><div><label class="mini-label">Лява колона</label>${Array.from({length:n},(_,j)=>`<label class="match-edit-row"><span>${String.fromCharCode(65+j)}</span><input type="text" data-edit-match-side="matchLeft" data-edit-match-item="${j}" data-edit-index="${i}" value="${esc(left[j]||'')}"></label>`).join('')}</div><div><label class="mini-label">Дясна колона</label>${Array.from({length:n},(_,j)=>`<label class="match-edit-row"><span>${j+1}</span><input type="text" data-edit-match-side="matchRight" data-edit-match-item="${j}" data-edit-index="${i}" value="${esc(right[j]||'')}"></label>`).join('')}</div></div><label class="mini-label">Правилно свързване</label><input class="match-map-input" type="text" data-edit-field="matchAnswer" data-edit-index="${i}" value="${esc(c.matchAnswer||'')}" placeholder="A:1; B:3; C:2">`;}else{const field=c.type==='combo'?'comboAnswer':'answer';const value=c[field]||'';ans=`<label class="mini-label">Правилен отговор</label><textarea rows="2" data-edit-field="${field}" data-edit-index="${i}">${esc(value)}</textarea>`;}const cropEdit=hasQuestionCrop(c)?`<div class="edit-crop"><span>Оригинален въпрос</span><img src="${c.crop}" alt="Изрязан въпрос"></div>`:'';return `<article class="edit-card" data-edit-card="${i}"><div class="edit-card-head"><span class="type-pill">${esc(type)}</span><button type="button" class="edit-remove" data-edit-remove="${i}">Премахни</button></div>${cropEdit}<label class="mini-label">${cropEdit?'Разпознат текст':'Въпрос'}</label><textarea rows="2" data-edit-field="q" data-edit-index="${i}">${esc(c.q||'')}</textarea>${ans}<label class="mini-label">Обяснение</label><textarea rows="2" data-edit-field="e" data-edit-index="${i}">${esc(c.e||'')}</textarea></article>`;}
 
   function renderEditCards(){const d=libraryState.editDraft;if(!d)return;document.getElementById('editCards').innerHTML=(d.cards||[]).map(editCardMarkup).join('')||'<div class="empty-card"><strong>Няма карти</strong>Остави поне една карта, за да запазиш комплекта.</div>';}
   function openDeckEditor(id){state=loadState();const deck=findDeck(id);if(!deck)return;libraryState.editDraft=JSON.parse(JSON.stringify(deck));document.getElementById('editDeckName').value=deck.name||'';document.getElementById('editDeckSubject').innerHTML=SUBJECTS.map(s=>`<option value="${esc(s.id)}" ${deck.subject===s.id?'selected':''}>${esc(s.label)}</option>`).join('');renderEditCards();closeDeckDetail();const b=document.getElementById('editBackdrop');b.hidden=false;b.classList.add('open');b.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}
@@ -309,14 +309,15 @@
     if(!deck||!cards.length){root.innerHTML=`<div class="study-finish"><h2>${studyState.mode==='review'?'Няма карти за преговор':'Няма избран комплект'}</h2><p>${studyState.mode==='review'?'Опашката за преговор е празна.':'Отвори библиотеката и избери комплект, който искаш да учиш.'}</p><button class="primary-button" type="button" data-study-return>${studyState.mode==='review'?'Към преговора':'Към библиотеката'}</button></div>`;return;}
     if(studyState.index>=cards.length){const total=studyState.known+studyState.unknown,acc=total?Math.round(studyState.known/total*100):0,isReview=studyState.mode==='review';root.innerHTML=`<div class="study-finish"><div class="study-finish-mark">✓</div><h2>${isReview?'Преговорът е готов':'Сесията е готова'}</h2><p>${isReview?'Мина през всички избрани трудни карти. Опашката вече е обновена според резултатите ти.':`Мина през всички карти в „${esc(deck.name)}“. Резултатите вече са записани.`}</p><div class="study-finish-stats"><div class="finish-stat"><strong>${cards.length}</strong><span>карти</span></div><div class="finish-stat"><strong>${studyState.known}</strong><span>знаех</span></div><div class="finish-stat"><strong>${acc}%</strong><span>точност</span></div></div><div class="study-finish-actions"><button class="secondary-button" type="button" data-study-return>${isReview?'Към преговора':'Библиотека'}</button>${isReview?'<button class="primary-button" type="button" data-study-review-again>Преговори оставащите</button>':'<button class="primary-button" type="button" data-study-repeat>Учи отново</button>'}</div></div>`;return;}
     const c=cards[studyState.index],subjectId=c._subject||deck.subject,s=subjectInfo(subjectId),pct=Math.round(studyState.index/cards.length*100),meta=STUDY_TYPE_META[c.type]||{label:TYPE_LABELS[c.type]||'Карта',help:'Отговори на въпроса и провери решението.'};let body='',specialMatch=c.type==='match';
-    if(c.type==='mcq'&&Array.isArray(c.o)){body=`<div class="study-options">${c.o.map((o,i)=>`<button type="button" class="study-option ${studyState.selected==='ABCD'[i]?'selected':''}" data-study-option="${'ABCD'[i]}"><strong>${'ABCD'[i]}.</strong> ${esc(o)}</button>`).join('')}</div>`;}
+    if(c.type==='mcq'&&Array.isArray(c.o)){const cropped=hasQuestionCrop(c);body=`<div class="study-options ${cropped?'study-options-crop':''}">${c.o.map((o,i)=>`<button type="button" class="study-option ${studyState.selected==='ABCD'[i]?'selected':''}" data-study-option="${'ABCD'[i]}"><strong>${'ABCD'[i]}${cropped?'':'.'}</strong>${cropped?'':` ${esc(o)}`}</button>`).join('')}</div>`;}
     else if(c.type==='yesno'){body=`<div class="study-options study-options-two"><button type="button" class="study-option ${studyState.selected==='Да'?'selected':''}" data-study-option="Да"><strong>Да</strong></button><button type="button" class="study-option ${studyState.selected==='Не'?'selected':''}" data-study-option="Не"><strong>Не</strong></button></div>`;}
     else if(c.type==='combo'){const sub=Array.isArray(c.subpoints)?c.subpoints.filter(Boolean):[],opts=Array.isArray(c.comboOptions)?c.comboOptions.filter(Boolean):[];body=`${sub.length?`<div class="combo-statements">${sub.map((v,i)=>`<div><span>${i+1}</span>${esc(v)}</div>`).join('')}</div>`:''}${opts.length?`<div class="study-options combo-options">${opts.map(v=>`<button type="button" class="study-option ${studyState.selected===v?'selected':''}" data-study-option="${esc(v)}">${esc(v)} са верни</button>`).join('')}</div>`:''}`;}
     else if(c.type==='match'){body=renderMatchBody(c);}
     else{body='<div class="open-question-note">Помисли за отговора си. Когато си готов, покажи решението и се самооцени.</div>';}
     const genericAnswer=studyState.revealed?`<div class="study-answer"><span class="study-answer-label">Правилен отговор</span><strong>${esc(correctText(c)||'—')}</strong>${c.e?`<p>${esc(c.e)}</p>`:''}</div><div class="study-rate"><button class="rate-no" type="button" data-study-rate="no">Не знаех</button><button class="rate-yes" type="button" data-study-rate="yes">Знаех</button></div>`:`<div class="study-reveal"><button class="primary-button" type="button" data-study-reveal>Покажи отговора</button></div>`;
     const backLabel=studyState.mode==='review'?'← Преговор':'← Библиотека',deckContext=studyState.mode==='review'&&c._deckName?` · ${esc(c._deckName)}`:'';
-    root.innerHTML=`<div class="study-top"><button class="study-back" type="button" data-study-return>${backLabel}</button><div class="study-progress-copy"><strong>${esc(deck.name)}</strong>${studyState.index+1} от ${cards.length}</div></div><div class="study-progress-line"><i style="width:${pct}%"></i></div><article class="study-card"><div class="study-meta-row"><div class="study-subject"><span class="subject-dot" style="--subject-color:${s.color}"></span>${esc(s.label)}${deckContext}</div><div class="study-type-badge"><span>Вид въпрос</span><strong>${esc(meta.label)}</strong></div></div><div class="study-type-help">${esc(meta.help)}</div><div class="study-question">${esc(c.q||'')}</div>${body}${specialMatch?(studyState.revealed?genericAnswer:''):genericAnswer}</article>`;
+    const questionFront=hasQuestionCrop(c)?`<div class="study-question-crop"><img src="${c.crop}" alt="Оригинален въпрос ${esc(c.sourceQuestionNumber||c.number||studyState.index+1)}"><div class="study-question-crop-caption"><span>Оригинален въпрос от материала</span>${c.sourceImageName?`<small>${esc(c.sourceImageName)}</small>`:''}</div></div>`:`<div class="study-question">${esc(c.q||'')}</div>`;
+    root.innerHTML=`<div class="study-top"><button class="study-back" type="button" data-study-return>${backLabel}</button><div class="study-progress-copy"><strong>${esc(deck.name)}</strong>${studyState.index+1} от ${cards.length}</div></div><div class="study-progress-line"><i style="width:${pct}%"></i></div><article class="study-card"><div class="study-meta-row"><div class="study-subject"><span class="subject-dot" style="--subject-color:${s.color}"></span>${esc(s.label)}${deckContext}</div><div class="study-type-badge"><span>Вид въпрос</span><strong>${esc(meta.label)}</strong></div></div><div class="study-type-help">${esc(meta.help)}</div>${questionFront}${body}${specialMatch?(studyState.revealed?genericAnswer:''):genericAnswer}</article>`;
   }
   function rateStudy(ok){
     state=loadState();const sessionCard=currentStudyCard();if(!sessionCard)return;let deck,c;
@@ -325,16 +326,16 @@
     if(!deck||!c)return;state.results.push({id:c.id,ok:!!ok,at:new Date().toISOString(),deckId:deck.id});state.mistakes=state.mistakes||{};state.mistakes[c.id]=ok?Math.max(0,Number(state.mistakes[c.id]||0)-1):Number(state.mistakes[c.id]||0)+1;deck.updatedAt=new Date().toISOString();if(ok)studyState.known++;else studyState.unknown++;studyState.index++;resetStudyCardState();saveState();renderStudy();
   }
 
-  const createState={step:1,sourceType:'topic',files:[],subject:null,studyMode:'cards',generated:[],busy:false};
+  const createState={step:1,sourceType:'topic',materialMode:'content',files:[],subject:null,studyMode:'cards',generated:[],busy:false};
   function resetCreate({keepSubject=true}={}){
     state=loadState();const prefs=effectiveSettings();
     const subject=keepSubject&&prefs.rememberLastSubject!==false?(createState.subject||prefs.lastSubject||null):null;
-    createState.step=1;createState.sourceType='topic';createState.files=[];createState.subject=subject;createState.studyMode=['cards','test','mixed'].includes(prefs.defaultStudyMode)?prefs.defaultStudyMode:'cards';createState.generated=[];createState.busy=false;
+    createState.step=1;createState.sourceType='topic';createState.materialMode='content';createState.files=[];createState.subject=subject;createState.studyMode=['cards','test','mixed'].includes(prefs.defaultStudyMode)?prefs.defaultStudyMode:'cards';createState.generated=[];createState.busy=false;
     for(const id of ['createTopic','materialText','materialTopic','deckName']){const el=document.getElementById(id);if(el)el.value='';}
     const mf=document.getElementById('materialFiles');if(mf)mf.value='';
     const cc=document.getElementById('cardCount');if(cc)cc.value=String(prefs.defaultCardCount||10);
     const d=document.getElementById('difficulty');if(d)d.value=prefs.defaultDifficulty||'medium';
-    renderFiles();setSourceType('topic');setStudyMode(createState.studyMode);setCreateStep(1);renderSubjectPicker();
+    renderFiles();setSourceType('topic');setMaterialMode('content');setStudyMode(createState.studyMode);setCreateStep(1);renderSubjectPicker();
   }
   function openCreate({source='topic',topic='',pickFiles=false}={}){
     resetCreate({keepSubject:true});
@@ -350,16 +351,38 @@
     document.querySelectorAll('[data-progress-step]').forEach(el=>{const n=Number(el.dataset.progressStep);el.classList.toggle('active',n===createState.step);el.classList.toggle('done',n<createState.step);});
     const titles={1:['От какво искаш да учиш?','Добави материал или напиши тема. Ще подготвим всичко останало.'],2:['Настрой учебния комплект','Само няколко избора. Техническата част остава зад кулисите.'],3:['Прегледай преди да запазиш','ZNAYA подготви комплекта. Провери го и го добави в библиотеката.']};
     document.getElementById('createTitle').textContent=titles[createState.step][0];document.getElementById('createSubtitle').textContent=titles[createState.step][1];
+    updateCreateModeUI();
     renderCreateSummary();window.scrollTo({top:0,behavior:'auto'});
+  }
+  function isExerciseFlow(){return createState.sourceType==='material'&&createState.materialMode==='exercise';}
+  function updateCreateModeUI(){
+    const exercise=isExerciseFlow();
+    const advanced=document.getElementById('advancedCreateSettings');
+    const note=document.getElementById('exerciseSettingsNote');
+    const textBlock=document.getElementById('materialTextBlock');
+    if(advanced)advanced.classList.toggle('hidden',exercise);
+    if(note)note.classList.toggle('hidden',!exercise||createState.step!==2);
+    if(textBlock)textBlock.classList.toggle('hidden',exercise);
+  }
+  function setMaterialMode(mode){
+    createState.materialMode=mode==='exercise'?'exercise':'content';
+    document.querySelectorAll('[data-material-mode]').forEach(btn=>{const active=btn.dataset.materialMode===createState.materialMode;btn.classList.toggle('active',active);btn.setAttribute('aria-checked',String(active));});
+    const hint=document.getElementById('materialModeHint');
+    if(hint)hint.textContent=isExerciseFlow()?'ZNAYA ще създаде точно толкова въпроси, колкото има в качените задачи, и ще запази оригиналната им трудност.':'За учебен материал можеш да зададеш брой въпроси и трудност на следващата стъпка.';
+    updateCreateModeUI();renderCreateSummary();
   }
   function setSourceType(type){
     createState.sourceType=type==='material'?'material':'topic';
     document.querySelectorAll('[data-source]').forEach(btn=>{const active=btn.dataset.source===createState.sourceType;btn.classList.toggle('active',active);btn.setAttribute('aria-selected',String(active));});
     document.querySelectorAll('[data-source-panel]').forEach(p=>p.classList.toggle('active',p.dataset.sourcePanel===createState.sourceType));
+    updateCreateModeUI();renderCreateSummary();
   }
   function validateSource(){
     if(createState.sourceType==='topic'){
       if(!document.getElementById('createTopic').value.trim()){toast('Напиши тема, урок или глава.');document.getElementById('createTopic').focus();return false;}
+    }else if(isExerciseFlow()){
+      if(!createState.files.length){toast('Качи снимка или PDF с тестовите задачи.');return false;}
+      if(!createState.files.some(isImageFile)){toast('За автоматично изрязване на въпросите качи поне една PNG, JPG или WEBP снимка.');return false;}
     }else{
       const text=document.getElementById('materialText').value.trim();
       if(!createState.files.length&&!text){toast('Качи материал или постави текст.');return false;}
@@ -381,8 +404,10 @@
     const subject=createState.subject?subjectInfo(createState.subject).label:'Не е избран';
     const mode={cards:'Карти',test:'Тест',mixed:'Смесено'}[createState.studyMode];
     const count=document.getElementById('cardCount')?.value||'10';
-    const src=createState.sourceType==='topic'?'Тема':`${createState.files.length?createState.files.length+' файла':'Поставен текст'}`;
-    box.innerHTML=`<span class="summary-label">Твоят комплект</span><h3>${esc(sourceTitle()||'Нова тема')}</h3><dl><div><dt>Източник</dt><dd>${esc(src)}</dd></div><div><dt>Предмет</dt><dd>${esc(subject)}</dd></div><div><dt>Режим</dt><dd>${esc(mode)}</dd></div><div><dt>Размер</dt><dd>${esc(count)} карти</dd></div></dl><p>ZNAYA ще използва AI само за създаването. Комплектът ще остане в локалната ти библиотека.</p>`;
+    const difficultyLabel={easy:'Лесна',medium:'Средна',hard:'Трудна',university:'Университетска'}[document.getElementById('difficulty')?.value||'medium'];
+    const src=createState.sourceType==='topic'?'Тема':(isExerciseFlow()?`${createState.files.length||0} файла · тестови задачи`:`${createState.files.length?createState.files.length+' файла':'Поставен текст'}`);
+    const sizing=isExerciseFlow()?`<div><dt>Брой въпроси</dt><dd>Определя се от теста</dd></div><div><dt>Трудност</dt><dd>Запазва се оригиналната</dd></div>`:`<div><dt>Брой</dt><dd>${esc(count)} карти</dd></div><div><dt>Трудност</dt><dd>${esc(difficultyLabel)}</dd></div>`;
+    box.innerHTML=`<span class="summary-label">Твоят комплект</span><h3>${esc(sourceTitle()||'Нова тема')}</h3><dl><div><dt>Източник</dt><dd>${esc(src)}</dd></div><div><dt>Предмет</dt><dd>${esc(subject)}</dd></div><div><dt>Режим</dt><dd>${esc(mode)}</dd></div>${sizing}</dl><p>${isExerciseFlow()?'Всеки оригинален въпрос ще стане отделна карта с изображение на условието и всички опции под него.':'ZNAYA ще използва AI само за създаването. Комплектът ще остане в локалната ти библиотека.'}</p>`;
   }
 
   function validFile(file){return /^(image\/(png|jpeg|webp)|application\/pdf)$/i.test(file.type)||/\.(png|jpe?g|webp|pdf)$/i.test(file.name||'');}
@@ -403,9 +428,106 @@
     wrap.querySelectorAll('[data-remove-file]').forEach(btn=>btn.addEventListener('click',()=>{createState.files.splice(Number(btn.dataset.removeFile),1);renderFiles();renderCreateSummary();}));
   }
 
+  const isImageFile=file=>!!file&&(/^image\//i.test(file.type||'')||/\.(?:png|jpe?g|webp)$/i.test(file.name||''));
+  function ensureZnayaTesseract(){
+    if(window.Tesseract)return Promise.resolve(window.Tesseract);
+    if(window.__znayaTesseractPromise)return window.__znayaTesseractPromise;
+    window.__znayaTesseractPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      script.async=true;
+      script.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR библиотеката не се инициализира.'));
+      script.onerror=()=>reject(new Error('OCR библиотеката не може да се зареди.'));
+      document.head.appendChild(script);
+    });
+    return window.__znayaTesseractPromise;
+  }
+  function cleanCropOcrLine(line){return String(line||'').replace(/\u00a0/g,' ').replace(/[|¦]/g,'I').replace(/[“”„]/g,'"').replace(/[‘’]/g,"'").replace(/\t/g,' ').replace(/\s+/g,' ').trim();}
+  // Deliberately strict: a question number must begin the line. This prevents titles such as "ТЕМА 1." from being treated as question 1.
+  function parseCropQuestionStart(line){
+    const s=cleanCropOcrLine(line);
+    let m=s.match(/^[^\p{L}\p{N}]{0,3}(?:въпрос\s*)?(\d{1,3})\s*[\.:)\-]\s*(.+)$/iu);
+    if(!m)m=s.match(/^[^\p{L}\p{N}]{0,3}(?:въпрос\s*)?(\d{1,3})\s+(.+)$/iu);
+    return m?{number:Number(m[1]),text:cleanCropOcrLine(m[2])}:null;
+  }
+  function groupCropWordsIntoLines(words){
+    const items=(Array.isArray(words)?words:[]).filter(w=>String(w?.text||'').trim()).map(w=>({text:String(w.text||'').trim(),bbox:{x0:Number(w?.bbox?.x0??0),y0:Number(w?.bbox?.y0??0),x1:Number(w?.bbox?.x1??0),y1:Number(w?.bbox?.y1??0)}})).sort((a,b)=>a.bbox.y0-b.bbox.y0||a.bbox.x0-b.bbox.x0);
+    const lines=[];
+    for(const word of items){
+      const cy=(word.bbox.y0+word.bbox.y1)/2,h=Math.max(10,word.bbox.y1-word.bbox.y0);let row=null;
+      for(let j=lines.length-1;j>=0;j--){if(Math.abs(lines[j].cy-cy)<=Math.max(12,h*.75)){row=lines[j];break;}}
+      if(!row){row={cy,words:[]};lines.push(row);}row.words.push(word);row.cy=(row.cy*(row.words.length-1)+cy)/row.words.length;
+    }
+    return lines.map(row=>{row.words.sort((a,b)=>a.bbox.x0-b.bbox.x0);const xs0=row.words.map(w=>w.bbox.x0),ys0=row.words.map(w=>w.bbox.y0),xs1=row.words.map(w=>w.bbox.x1),ys1=row.words.map(w=>w.bbox.y1);return {text:cleanCropOcrLine(row.words.map(w=>w.text).join(' ')),bbox:{x0:Math.min(...xs0),y0:Math.min(...ys0),x1:Math.max(...xs1),y1:Math.max(...ys1)}};}).filter(l=>l.text).sort((a,b)=>a.bbox.y0-b.bbox.y0);
+  }
+  function loadCropImage(file){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{URL.revokeObjectURL(url);resolve(img);};img.onerror=err=>{URL.revokeObjectURL(url);reject(err);};img.src=url;});}
+  function cropRegionToDataUrl(img,block){
+    const maxWidth=1500,scale=Math.min(1,maxWidth/block.w),w=Math.max(1,Math.round(block.w*scale)),h=Math.max(1,Math.round(block.h*scale));
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,block.x,block.y,block.w,block.h,0,0,w,h);return canvas.toDataURL('image/jpeg',.88);
+  }
+  function questionsForImage(allQuestions,file,fileIndex,totalFiles){
+    const indexed=allQuestions.map((q,qi)=>({q,qi}));
+    const exact=indexed.filter(({q})=>Number(q.sourceImageIndex)===fileIndex||String(q.sourceImageName||'')===String(file.name||''));
+    if(exact.length)return exact;
+    return totalFiles===1?indexed:[];
+  }
+  async function analyzeExerciseImage(file,fileIndex,expectedEntries){
+    await ensureZnayaTesseract();
+    const img=await loadCropImage(file),imageHeight=img.naturalHeight||img.height,imageWidth=img.naturalWidth||img.width,worker=await Tesseract.createWorker('bul+eng');
+    try{
+      await worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});
+      const result=await worker.recognize(file),lines=groupCropWordsIntoLines(result?.data?.words||[]);
+      // Real question numbers sit in the left part of the page. Reject centered headings and right-side page metadata.
+      const candidates=[];
+      lines.forEach((line,idx)=>{const header=parseCropQuestionStart(line.text);if(header&&line.bbox.x0<=imageWidth*.38)candidates.push({idx,number:header.number,bbox:line.bbox,text:line.text});});
+      if(!candidates.length||!expectedEntries.length)return [];
+      const expected=[...expectedEntries].sort((a,b)=>(Number(a.q.number)||a.qi+1)-(Number(b.q.number)||b.qi+1));
+      const mapped=[];let afterIdx=-1;
+      for(const entry of expected){
+        const wanted=Number(entry.q.number)||entry.qi+1;
+        // Exact printed number after the previous confirmed question. Never fall back to an unrelated number: wrong crop is worse than no crop.
+        const hit=candidates.find(c=>c.idx>afterIdx&&c.number===wanted);
+        if(!hit)continue;
+        mapped.push({qi:entry.qi,start:hit,number:wanted});afterIdx=hit.idx;
+      }
+      if(!mapped.length)return [];
+      return mapped.map((m,pos)=>{
+        const next=pos<mapped.length-1?mapped[pos+1].start:null;
+        const nextStartIdx=next?next.idx:lines.length;
+        let blockLines=lines.slice(m.start.idx,nextStartIdx);
+        // Ignore printer/page-footer noise in the bottom ~5% for the final question.
+        if(!next)blockLines=blockLines.filter(l=>l.bbox.y0<imageHeight*.94||l.bbox.y0<m.start.bbox.y0+80);
+        const top=Math.max(0,Math.round(m.start.bbox.y0-18));
+        const bottom=next?Math.min(imageHeight,Math.round(next.bbox.y0-10)):Math.min(imageHeight,Math.round(Math.max(...blockLines.map(l=>l.bbox.y1),m.start.bbox.y1)+24));
+        // Use nearly the full printable width. This guarantees that long answer options are not clipped horizontally when OCR misses words.
+        const left=Math.max(0,Math.round(Math.min(m.start.bbox.x0,...blockLines.map(l=>l.bbox.x0))-35));
+        const right=Math.min(imageWidth,Math.round(Math.max(imageWidth*.94,...blockLines.map(l=>l.bbox.x1))+18));
+        const block={x:left,y:top,w:Math.max(80,right-left),h:Math.max(60,bottom-top)};
+        return {qi:m.qi,number:m.number,fileIndex,fileName:file.name,crop:cropRegionToDataUrl(img,block)};
+      });
+    }finally{await worker.terminate();}
+  }
+  async function buildVisualExerciseCropPlan(files,questions){
+    const plan=[],list=Array.from(files||[]);
+    for(let i=0;i<list.length;i++){
+      const file=list[i];if(!isImageFile(file))continue;
+      const expected=questionsForImage(questions,file,i,list.length);if(!expected.length)continue;
+      try{plan.push(...await analyzeExerciseImage(file,i,expected));}catch(err){console.warn('ZNAYA visual crop skipped for',file.name,err);}
+    }
+    return plan;
+  }
+  function attachVisualExerciseCrops(questions,plan){
+    if(!Array.isArray(plan)||!plan.length)return questions;
+    const byQuestion=new Map(plan.map(p=>[p.qi,p]));
+    return questions.map((q,qi)=>{const hit=byQuestion.get(qi);return hit?{...q,crop:hit.crop,visualExercise:true,sourceImageIndex:hit.fileIndex,sourceImageName:hit.fileName,sourceQuestionNumber:hit.number}:q;});
+  }
+  function hasQuestionCrop(q){return !!(q&&typeof q.crop==='string'&&q.crop.startsWith('data:image/'));}
+
   function normalizeQuestion(raw,index){
     const type=ALLOWED_TYPES.has(raw?.type)?raw.type:'open';
-    return {type,number:index+1,q:String(raw?.q||'').trim(),o:Array.isArray(raw?.o)?raw.o.map(String).slice(0,4):[],a:String(raw?.a||'').toUpperCase(),answer:String(raw?.answer||'').trim(),subpoints:Array.isArray(raw?.subpoints)?raw.subpoints.map(String):[],comboOptions:Array.isArray(raw?.comboOptions)?raw.comboOptions.map(String):[],comboAnswer:String(raw?.comboAnswer||''),matchLeft:Array.isArray(raw?.matchLeft)?raw.matchLeft.map(String):[],matchRight:Array.isArray(raw?.matchRight)?raw.matchRight.map(String):[],matchAnswer:String(raw?.matchAnswer||''),e:String(raw?.e||'').trim(),topic:String(raw?.topic||sourceTitle()||subjectInfo(createState.subject).label).trim(),source:'ZNAYA AI',materialGenerated:true};
+    const rawNumber=Number(raw?.number);
+    const sourceImageIndex=Number.isInteger(Number(raw?.sourceImageIndex))?Number(raw.sourceImageIndex):-1;
+    return {type,number:Number.isFinite(rawNumber)&&rawNumber>0?rawNumber:index+1,q:String(raw?.q||'').trim(),o:Array.isArray(raw?.o)?raw.o.map(String).slice(0,4):[],a:String(raw?.a||'').toUpperCase(),answer:String(raw?.answer||'').trim(),subpoints:Array.isArray(raw?.subpoints)?raw.subpoints.map(String):[],comboOptions:Array.isArray(raw?.comboOptions)?raw.comboOptions.map(String):[],comboAnswer:String(raw?.comboAnswer||''),matchLeft:Array.isArray(raw?.matchLeft)?raw.matchLeft.map(String):[],matchRight:Array.isArray(raw?.matchRight)?raw.matchRight.map(String):[],matchAnswer:String(raw?.matchAnswer||''),e:String(raw?.e||'').trim(),topic:String(raw?.topic||sourceTitle()||subjectInfo(createState.subject).label).trim(),sourceImageIndex,sourceImageName:String(raw?.sourceImageName||''),crop:String(raw?.crop||''),visualExercise:raw?.visualExercise===true,source:'ZNAYA AI',materialGenerated:true};
   }
   function sampleQuestions(){
     const title=sourceTitle()||'Темата';
@@ -420,7 +542,7 @@
     if(!createState.subject){toast('Избери предмет.');return;}
     createState.busy=true;createState.generated=[];setCreateStep(3);
     document.getElementById('reviewWorkspace').classList.add('hidden');document.getElementById('generationState').classList.remove('hidden');
-    document.getElementById('generationMessage').textContent=createState.files.length?'Четем материала и подбираме най-важното…':'Структурираме темата и подготвяме подходящи въпроси…';
+    document.getElementById('generationMessage').textContent=isExerciseFlow()?'Разпознаваме задачите, изрязваме всеки въпрос заедно с опциите му и пазим номерацията…':(createState.files.some(isImageFile)?'Разчитаме материала и подготвяме учебни въпроси…':(createState.files.length?'Четем материала и подбираме най-важното…':'Структурираме темата и подготвяме подходящи въпроси…'));
     try{
       let payload;
       if(window.ZNAYA_PREVIEW_MODE){await new Promise(r=>setTimeout(r,850));payload={questions:sampleQuestions()};}
@@ -428,9 +550,13 @@
         if(!window.ZNAYAAI?.generateMaterial)throw new Error('ZNAYA AI модулът не се зареди. Провери интернет връзката.');
         const settings=window.ZNAYAAI.settings();
         if(settings.mode==='auto'||settings.mode==='puter')await window.ZNAYAAI.ensureSignedIn();
-        payload=await window.ZNAYAAI.generateMaterial({subject:createState.subject,title:sourceTitle(),count:Number(document.getElementById('cardCount').value)||10,difficulty:document.getElementById('difficulty').value||'medium',studyMode:createState.studyMode,files:createState.files,materialText:createState.sourceType==='material'?document.getElementById('materialText').value.trim():''});
+        payload=await window.ZNAYAAI.generateMaterial({subject:createState.subject,title:sourceTitle(),count:isExerciseFlow()?undefined:(Number(document.getElementById('cardCount').value)||10),difficulty:isExerciseFlow()?undefined:(document.getElementById('difficulty').value||'medium'),studyMode:createState.studyMode,files:createState.files,materialText:createState.sourceType==='material'?document.getElementById('materialText').value.trim():'',materialMode:createState.materialMode});
       }
       createState.generated=(payload?.questions||[]).map(normalizeQuestion).filter(q=>q.q);
+      if(isExerciseFlow()&&createState.files.some(isImageFile)){
+        const cropPlan=await buildVisualExerciseCropPlan(createState.files,createState.generated).catch(err=>{console.warn('ZNAYA crop plan failed',err);return [];});
+        if(cropPlan.length)createState.generated=attachVisualExerciseCrops(createState.generated,cropPlan);
+      }
       if(!createState.generated.length)throw new Error('ZNAYA не успя да създаде карти от този материал.');
       const name=document.getElementById('deckName');name.value=sourceTitle()||`${subjectInfo(createState.subject).label} — нов комплект`;
       renderGenerated();
@@ -458,7 +584,8 @@
       const field=q.type==='combo'?'comboAnswer':'answer';
       answer=`<label class="mini-label">Правилен отговор</label><textarea class="answer-edit" rows="2" data-card-field="${field}" data-card-index="${index}">${esc(value)}</textarea>`;
     }
-    return `<article class="generated-card" data-generated-card="${index}"><div class="generated-card-top"><span class="type-pill">${esc(TYPE_LABELS[q.type]||'Карта')}</span><button class="delete-card" type="button" data-delete-card="${index}">Премахни</button></div><label class="mini-label">Въпрос</label><textarea class="question-edit" rows="2" data-card-field="q" data-card-index="${index}">${esc(q.q)}</textarea>${answer}<div class="generated-explain"><span>Обяснение</span><textarea rows="2" data-card-field="e" data-card-index="${index}" placeholder="Кратко обяснение…">${esc(q.e)}</textarea></div></article>`;
+    const cropPreview=hasQuestionCrop(q)?`<div class="generated-crop"><div class="generated-crop-head"><strong>Оригинален въпрос</strong><span>${esc(q.sourceImageName||'качена снимка')}</span></div><img src="${q.crop}" alt="Изрязан въпрос ${esc(q.number||index+1)}"></div>`:'';
+    return `<article class="generated-card" data-generated-card="${index}"><div class="generated-card-top"><div class="generated-card-meta"><span class="type-pill">${esc(TYPE_LABELS[q.type]||'Карта')}</span><span class="question-index">Въпрос ${esc(q.sourceQuestionNumber||q.number||index+1)}</span></div><button class="delete-card" type="button" data-delete-card="${index}">Премахни</button></div>${cropPreview}<label class="mini-label">${cropPreview?'Разпознат текст':'Въпрос'}</label><textarea class="question-edit" rows="2" data-card-field="q" data-card-index="${index}">${esc(q.q)}</textarea>${answer}<div class="generated-explain"><span>Обяснение</span><textarea rows="2" data-card-field="e" data-card-index="${index}" placeholder="Кратко обяснение…">${esc(q.e)}</textarea></div></article>`;
   }
 
   function renderGenerated(){
@@ -470,9 +597,10 @@
     if(!createState.generated.length){toast('Няма карти за запазване.');return;}
     const name=document.getElementById('deckName').value.trim()||sourceTitle()||'Нов комплект';
     state=loadState();const now=new Date().toISOString(),deckId=`deck-${Date.now()}`;
-    const cards=createState.generated.map((q,idx)=>({...q,number:idx+1,id:`c${Date.now()}-${idx}`,subject:createState.subject,source:'ZNAYA AI',studyMode:createState.studyMode,createdAt:now}));
+    const cards=createState.generated.map((q,idx)=>({...q,number:Number(q.sourceQuestionNumber||q.number||idx+1),id:`c${Date.now()}-${idx}`,subject:createState.subject,source:'ZNAYA AI',studyMode:createState.studyMode,createdAt:now}));
     const deck={id:deckId,name,subject:createState.subject,source:'ZNAYA AI',studyMode:createState.studyMode,createdAt:now,updatedAt:now,cards:JSON.parse(JSON.stringify(cards))};
-    state.deck=JSON.parse(JSON.stringify(cards));state.currentDeckId=deckId;state.currentDeckName=name;state.deckLibrary=Array.isArray(state.deckLibrary)?state.deckLibrary:[];state.deckLibrary.unshift(deck);state.mistakes=state.mistakes&&typeof state.mistakes==='object'?state.mistakes:{};cards.forEach(c=>{if(state.mistakes[c.id]===undefined)state.mistakes[c.id]=0;});saveState();
+    state.deck=JSON.parse(JSON.stringify(cards));state.currentDeckId=deckId;state.currentDeckName=name;state.deckLibrary=Array.isArray(state.deckLibrary)?state.deckLibrary:[];state.deckLibrary.unshift(deck);state.mistakes=state.mistakes&&typeof state.mistakes==='object'?state.mistakes:{};cards.forEach(c=>{if(state.mistakes[c.id]===undefined)state.mistakes[c.id]=0;});
+    if(!saveState()){toast('Комплектът не беше запазен. Изрязаните изображения може да са запълнили локалното хранилище.');return;}
     resetCreate({keepSubject:true});go('library');toast(`„${name}“ е добавен в библиотеката.`);
   }
 
@@ -497,6 +625,7 @@
 
   document.getElementById('createBack').addEventListener('click',()=>go('home'));
   document.querySelectorAll('[data-source]').forEach(btn=>btn.addEventListener('click',()=>setSourceType(btn.dataset.source)));
+  document.querySelectorAll('[data-material-mode]').forEach(btn=>btn.addEventListener('click',()=>setMaterialMode(btn.dataset.materialMode)));
   document.getElementById('sourceNext').addEventListener('click',()=>{if(validateSource())setCreateStep(2);});
   document.querySelectorAll('[data-create-prev]').forEach(btn=>btn.addEventListener('click',()=>setCreateStep(Number(btn.dataset.createPrev))));
   document.querySelectorAll('[data-study-mode]').forEach(btn=>btn.addEventListener('click',()=>setStudyMode(btn.dataset.studyMode)));
@@ -561,4 +690,4 @@
   setView((location.hash||'#home').slice(1));
 })();
 
-if('serviceWorker' in navigator&&!window.ZNAYA_PREVIEW_MODE){window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));}
+if('serviceWorker' in navigator&&!window.ZNAYA_PREVIEW_MODE){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));}

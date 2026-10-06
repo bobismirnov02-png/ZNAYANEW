@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#fafaff">
   <meta name="description" content="ZNAYA">
   <title>ZNAYA</title>
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=6.0.0-rc4">
-  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png?v=6.0.0-rc4">
-  <link rel="shortcut icon" href="/assets/favicon.ico?v=6.0.0-rc4">
-  <link rel="apple-touch-icon" sizes="192x192" href="/assets/znaya-192.png">
-  <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/app.css?v=6.0.0-rc4">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=6.0.0-rc5">
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16.png?v=6.0.0-rc5">
+  <link rel="shortcut icon" href="./assets/favicon.ico?v=6.0.0-rc5">
+  <link rel="apple-touch-icon" sizes="192x192" href="./assets/znaya-192.png">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./app.css?v=6.3.0-rc8">
 
   <style id="znaya-critical-overlays">
     [hidden]{display:none!important}
@@ -23,7 +23,7 @@
 <div class="app">
   <aside class="sidebar" aria-label="Главна навигация">
     <a class="brand-link" href="#home" aria-label="ZNAYA начало">
-      <img class="brand-lockup" src="/assets/znaya-lockup.png" alt="ZNAYA">
+      <img class="brand-lockup" src="./assets/znaya-lockup.png" alt="ZNAYA">
       <div class="brand-tagline">От материал до знание.</div>
     </a>
 
@@ -178,9 +178,27 @@
                 <small>PDF, PNG, JPG или WEBP · до 10 файла</small>
               </button>
               <div class="file-list" id="fileList"></div>
-              <div class="paste-divider"><span>или</span></div>
-              <label class="field-label" for="materialText">Постави текст</label>
-              <textarea class="paste-input" id="materialText" rows="6" placeholder="Постави откъс от лекция, учебник или записки…"></textarea>
+              <div class="material-kind-block">
+                <span class="material-kind-title">Какъв тип материал качваш?</span>
+                <div class="material-kind-picker" id="materialKindPicker" role="radiogroup" aria-label="Тип качен материал">
+                  <button class="material-kind active" type="button" data-material-mode="content" role="radio" aria-checked="true">
+                    <span class="material-kind-icon">▤</span>
+                    <span class="material-kind-copy"><strong>Учебен материал</strong><small>Тема, глава, част от книга или записки</small></span>
+                    <span class="material-kind-check">✓</span>
+                  </button>
+                  <button class="material-kind" type="button" data-material-mode="exercise" role="radio" aria-checked="false">
+                    <span class="material-kind-icon">✓</span>
+                    <span class="material-kind-copy"><strong>Тестови задачи</strong><small>Запазва въпросите, опциите и оригиналната им номерация</small></span>
+                    <span class="material-kind-check">✓</span>
+                  </button>
+                </div>
+                <p class="field-hint" id="materialModeHint">За учебен материал можеш да зададеш брой въпроси и трудност на следващата стъпка.</p>
+              </div>
+              <div id="materialTextBlock">
+                <div class="paste-divider"><span>или</span></div>
+                <label class="field-label" for="materialText">Постави текст</label>
+                <textarea class="paste-input" id="materialText" rows="6" placeholder="Постави откъс от лекция, учебник или записки…"></textarea>
+              </div>
               <label class="field-label compact" for="materialTopic">Име на темата <span>по желание</span></label>
               <input class="field-input" id="materialTopic" placeholder="Напр. Източници на правото">
             </div>
@@ -203,7 +221,8 @@
                     <button class="mode-card" type="button" data-study-mode="mixed"><span class="mode-glyph">✦</span><strong>Смесено</strong><small>Карти + тестови въпроси</small><em>Препоръчано</em></button>
                   </div>
                 </div>
-                <details class="advanced-box">
+                <p class="setup-note hidden" id="exerciseSettingsNote">При тестови задачи броят въпроси и трудността се определят от качения материал и не се задават ръчно.</p>
+                <details class="advanced-box" id="advancedCreateSettings">
                   <summary>Разширени настройки</summary>
                   <div class="advanced-grid">
                     <label><span>Брой карти</span><select id="cardCount"><option>6</option><option selected>10</option><option>15</option><option>20</option><option>30</option></select></label>
@@ -218,7 +237,7 @@
 
           <section class="create-step" data-create-step="3">
             <div class="generation-state" id="generationState" aria-live="polite">
-              <div class="generation-orb"><img src="/assets/znaya-symbol.png" alt=""></div>
+              <div class="generation-orb"><img src="./assets/znaya-symbol.png" alt=""></div>
               <h2>Подготвяме учебния комплект…</h2>
               <p id="generationMessage">ZNAYA анализира материала и подбира най-подходящите въпроси.</p>
               <div class="generation-bar"><i></i></div>
@@ -380,7 +399,7 @@
 
             <section class="settings-panel" data-settings-panel="about">
               <div class="settings-panel-head"><div><span class="settings-eyebrow">Продукт</span><h2>За ZNAYA</h2><p>ZNAYA 1.0 — новата учебна платформа от материал до знание.</p></div></div>
-              <div class="about-brand-card"><img src="/assets/znaya-lockup.png" alt="ZNAYA"><p>От материал до знание.</p></div>
+              <div class="about-brand-card"><img src="./assets/znaya-lockup.png" alt="ZNAYA"><p>От материал до знание.</p></div>
               <div class="about-grid">
                 <div><span>Версия</span><strong>1.0 · Release Candidate 2</strong></div><div><span>Данни</span><strong>Локално в браузъра</strong></div><div><span>Мрежа</span><strong id="networkStatus">—</strong></div><div><span>Приложение</span><strong id="pwaStatus">Web / PWA</strong></div>
               </div>
@@ -428,7 +447,7 @@
 <script>
 window.ZNAYAPuterReady=window.ZNAYAPuterReady||new Promise((resolve)=>{const s=document.createElement('script');s.src='https://js.puter.com/v2/';s.async=true;s.onload=()=>resolve(true);s.onerror=()=>resolve(false);document.head.appendChild(s);});
 </script>
-<script src="/znaya-ai.js?v=6.0.0-rc4" defer></script>
-<script src="/app.js?v=6.0.0-rc4" defer></script>
+<script src="./znaya-ai.js?v=6.3.0-rc8" defer></script>
+<script src="./app.js?v=6.3.0-rc8" defer></script>
 </body>
 </html>

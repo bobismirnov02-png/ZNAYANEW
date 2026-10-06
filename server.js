@@ -8,7 +8,7 @@ const PORT=Number(process.env.PORT||8787);
 const HOST=process.env.HOST||(process.env.RENDER?"0.0.0.0":"127.0.0.1");
 const MAX_BODY=48*1024*1024;
 
-const schema={type:"object",additionalProperties:false,properties:{questions:{type:"array",items:{type:"object",additionalProperties:false,properties:{type:{type:"string",enum:["mcq","open","yesno","combo","match"]},number:{type:"integer"},q:{type:"string"},o:{type:"array",items:{type:"string"},maxItems:4},a:{type:"string",enum:["A","B","C","D",""]},answer:{type:"string"},subpoints:{type:"array",items:{type:"string"},maxItems:8},comboOptions:{type:"array",items:{type:"string"},maxItems:12},comboAnswer:{type:"string"},matchLeft:{type:"array",items:{type:"string"},maxItems:8},matchRight:{type:"array",items:{type:"string"},maxItems:8},matchAnswer:{type:"string"},e:{type:"string"},topic:{type:"string"}},required:["type","number","q","o","a","answer","subpoints","comboOptions","comboAnswer","matchLeft","matchRight","matchAnswer","e","topic"]}}},required:["questions"]};
+const schema={type:"object",additionalProperties:false,properties:{questions:{type:"array",items:{type:"object",additionalProperties:false,properties:{type:{type:"string",enum:["mcq","open","yesno","combo","match"]},number:{type:"integer"},q:{type:"string"},o:{type:"array",items:{type:"string"},maxItems:4},a:{type:"string",enum:["A","B","C","D",""]},answer:{type:"string"},subpoints:{type:"array",items:{type:"string"},maxItems:8},comboOptions:{type:"array",items:{type:"string"},maxItems:12},comboAnswer:{type:"string"},matchLeft:{type:"array",items:{type:"string"},maxItems:8},matchRight:{type:"array",items:{type:"string"},maxItems:8},matchAnswer:{type:"string"},e:{type:"string"},topic:{type:"string"},sourceImageIndex:{type:"integer"},sourceImageName:{type:"string"}},required:["type","number","q","o","a","answer","subpoints","comboOptions","comboAnswer","matchLeft","matchRight","matchAnswer","e","topic","sourceImageIndex","sourceImageName"]}}},required:["questions"]};
 
 class HttpError extends Error{constructor(status,message){super(message);this.status=status;}}
 const securityHeaders={
@@ -50,7 +50,7 @@ function serveStatic(req,res){let pathname;try{pathname=decodeURIComponent(new U
 
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost');
-  if(req.method==='GET'&&url.pathname==='/api/health')return send(res,200,{ok:true,provider:'ZNAYA AI Gateway',primary:'Puter.js',fallbacks:['Gemini BYOK','Groq BYOK'],version:'1.0.0-rc2'});
+  if(req.method==='GET'&&url.pathname==='/api/health')return send(res,200,{ok:true,provider:'ZNAYA AI Gateway',primary:'Puter.js',fallbacks:['Gemini BYOK','Groq BYOK'],version:'1.0.0-rc7'});
   if(req.method==='POST'&&url.pathname==='/api/byok/structured'){
     try{
       const key=String(req.headers['x-znaya-api-key']||req.headers['x-biohim-api-key']||'').trim();if(!key)throw new HttpError(401,'Липсва личен API ключ.');

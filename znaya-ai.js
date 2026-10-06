@@ -16,8 +16,8 @@
         o:{type:'array',items:{type:'string'},minItems:0,maxItems:4},a:{type:'string',enum:['A','B','C','D','']},answer:{type:'string'},
         subpoints:{type:'array',items:{type:'string'},maxItems:8},comboOptions:{type:'array',items:{type:'string'},maxItems:12},
         comboAnswer:{type:'string'},matchLeft:{type:'array',items:{type:'string'},maxItems:8},matchRight:{type:'array',items:{type:'string'},maxItems:8},
-        matchAnswer:{type:'string'},e:{type:'string'},topic:{type:'string'}
-      },required:['type','number','q','o','a','answer','subpoints','comboOptions','comboAnswer','matchLeft','matchRight','matchAnswer','e','topic']
+        matchAnswer:{type:'string'},e:{type:'string'},topic:{type:'string'},sourceImageIndex:{type:'integer'},sourceImageName:{type:'string'}
+      },required:['type','number','q','o','a','answer','subpoints','comboOptions','comboAnswer','matchLeft','matchRight','matchAnswer','e','topic','sourceImageIndex','sourceImageName']
     }}},required:['questions']
   };
 
@@ -106,17 +106,27 @@
     if(mode==='test')return 'Използвай предимно mcq и yesno. При mcq използвай 3 или 4 смислени варианта и точно един правилен отговор A/B/C/D.';
     return 'Използвай балансирана смес от open, mcq, yesno и match; combo само когато материалът естествено го изисква.';
   }
-  function buildPrompt({subject,title,count,difficulty,studyMode,files,materialText}){
+  function buildPrompt({subject,title,count,difficulty,studyMode,files,materialText,materialMode}){
     const n=Math.max(3,Math.min(30,Number(count)||10));
     const topic=String(title||'').trim();
     const list=Array.from(files||[]), names=list.map(f=>f.name).filter(Boolean);
     const text=String(materialText||'').trim();
     const levels={easy:'лесно',medium:'средно',hard:'трудно',university:'университетско'};
+    const exerciseMode=materialMode==='exercise';
     let sourceRule='Използвай устойчиви общоприети знания по посочената тема. При правните предмети не измисляй конкретни членове, срокове или променливи нормативни детайли.';
     if(list.length&&text)sourceRule=`Използвай САМО предоставените ${list.length} файла${names.length?' ('+names.join(', ')+')':''} и поставения текст. Третирай ги като един общ материал. Не добавяй външни факти. ПОСТАВЕН ТЕКСТ:\n${text}`;
     else if(list.length)sourceRule=`Използвай САМО предоставените ${list.length} файла${names.length?' ('+names.join(', ')+')':''}. Третирай ги като един общ материал. Не добавяй външни факти. Прочети внимателно всички изображения и PDF документи.`;
     else if(text)sourceRule=`Използвай САМО следния поставен текст. Не добавяй външни факти:\n${text}`;
-    return `Ти си преподавател по ${subjectLabel(subject)} в ZNAYA. Създай точно ${n} качествени учебни карти/въпроси. Тема: ${topic||'изведи я от материала'}. Трудност: ${levels[difficulty]||'средно'}. ${styleInstruction(studyMode)} Всеки въпрос да проверява отделно знание и да няма дублиране. За open попълни answer; за mcq попълни o и a; за yesno answer е само Да/Не; за match ЗАДЪЛЖИТЕЛНО попълни matchLeft и matchRight с еднакъв брой от 2 до 8 непразни елемента и matchAnswer във формат A:1; B:3; C:2. Всеки елемент отдясно трябва да се използва точно веднъж. Полето e да е кратко учебно обяснение, а topic — конкретната подтема. За неизползваните полета използвай празен стринг или празен масив. Номерирай от 1. ${sourceRule}`;
+    const countRule=exerciseMode
+      ? 'Материалът е качен като тестови задачи. Създай по една карта за всеки оригинален видим въпрос от качения материал, в същия ред, без да добавяш, премахваш или сливаш въпроси. Запази оригиналната номерация и опциите максимално точно.'
+      : (list.length
+        ? `Цели се в около ${n} карти. ВАЖНО: ако някой от файловете е номериран тест/упражнение с отделни задачи, НЕ преформулирай и НЕ измисляй нови въпроси — създай по една карта за всеки оригинален видим въпрос (до 30), в същия ред и запази неговия отпечатан номер.`
+        : `Създай точно ${n} качествени учебни карти/въпроси.`);
+    const imageRule=list.length
+      ? `За всяка карта, която идва от конкретен качен файл, попълни sourceImageIndex с нулевия индекс на файла в реда на качване (първият файл е 0) и sourceImageName с ТОЧНОТО име на този файл. Ако картата не е директно въпрос от конкретен файл, използвай sourceImageIndex=-1 и sourceImageName="".`
+      : `За всички карти използвай sourceImageIndex=-1 и sourceImageName="".`;
+    const learningStyle=exerciseMode?'Не променяй вида на оригиналните задачи: въпрос с варианти остава mcq, Да/Не остава yesno, свързване остава match, а свободен отговор остава open.':styleInstruction(studyMode);
+    return `Ти си преподавател по ${subjectLabel(subject)} в ZNAYA. ${countRule} Тема: ${topic||'изведи я от материала'}. ${exerciseMode?'Трудността и броят въпроси се определят от самия качен тест.':`Трудност: ${levels[difficulty]||'средно'}.`} ${learningStyle} Всеки въпрос да проверява отделно знание и да няма дублиране. Ако материалът е тест/упражнение, запази оригиналния текст, опциите и номерацията максимално точно. За open попълни answer; за mcq попълни o и a; за yesno answer е само Да/Не; за match ЗАДЪЛЖИТЕЛНО попълни matchLeft и matchRight с еднакъв брой от 2 до 8 непразни елемента и matchAnswer във формат A:1; B:3; C:2. Всеки елемент отдясно трябва да се използва точно веднъж. Полето e да е кратко учебно обяснение, а topic — конкретната подтема. За неизползваните полета използвай празен стринг или празен масив. ${imageRule} ${sourceRule}`;
   }
 
   async function puterGenerateMaterial(args){
